@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  youtube-archive:
+    build: .
+    container_name: youtube-archive-agent
+    restart: unless-stopped
+
+    volumes:
+      # Mount your configuration (required)
+      - ./my_config.py:/app/config/my_config.py:ro
+
+      # Mount rclone config (required for Google Drive)
+      - ~/.config/rclone:/root/.config/rclone:ro
+
+      # Optional: Mount cookies for private playlists
+      - ./cookies.txt:/app/cookies.txt:ro
+
+      # Persistent database
+      - ./data:/app/data
+
+      # Temporary storage (optional, for debugging)
+      # - ./downloads:/app/downloads
+      # - ./compressed:/app/compressed
+
+    environment:
+      # Override config with environment variables (optional)
+      - TZ=America/Los_Angeles
+      # - YT_WATCHLIST_URL=https://www.youtube.com/playlist?list=YOUR_LIST
+      # - YT_CHECK_INTERVAL=3600
+      # - YT_MAX_RESOLUTION=720
+      # - YT_LOG_LEVEL=INFO
+
+    # Resource limits (optional, adjust based on your needs)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2.0'
+    #       memory: 2G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 512M
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

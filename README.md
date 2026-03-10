@@ -54,6 +54,56 @@ yt_sync/
 
 ## Installation
 
+**Choose your preferred method:**
+- **🐳 Docker (Recommended)** - Easiest setup, isolated environment
+- **💻 Native** - Better performance, more control
+
+---
+
+## 🐳 Docker Installation (Recommended)
+
+### Quick Start
+
+```bash
+# 1. Clone the repository
+git clone git@github.com:realsystem/yt_sync.git
+cd yt_sync
+
+# 2. Configure rclone for Google Drive
+rclone config
+
+# 3. Create your configuration
+cp config.example.py my_config.py
+nano my_config.py  # Set WATCHLIST_URL
+
+# 4. Build and run
+make docker-build
+make docker-up
+
+# 5. View logs
+make docker-logs
+```
+
+That's it! The agent is now running in Docker.
+
+**See [DOCKER.md](DOCKER.md) for complete Docker documentation.**
+
+### Docker Commands
+
+```bash
+make docker-build      # Build image
+make docker-up         # Start agent
+make docker-down       # Stop agent
+make docker-logs       # View logs
+make docker-shell      # Access container
+make docker-test       # Run once (test)
+make help              # Show all commands
+```
+
+---
+
+## 💻 Native Installation
+
 ### 1. Install System Dependencies
 
 ```bash
