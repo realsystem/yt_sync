@@ -1,0 +1,17 @@
+# YouTube Archive Agent - Python Dependencies
+
+# Data validation and settings management
+pydantic>=2.0.0
+
+# HTTP requests (if needed for API calls)
+requests>=2.31.0
+
+# Scheduling (optional - can use cron instead)
+schedule>=1.2.0
+
+# Note: The following tools must be installed via system package manager (brew on macOS):
+# - yt-dlp
+# - ffmpeg
+# - rclone
+#
+# Install with: brew install yt-dlp ffmpeg rclone

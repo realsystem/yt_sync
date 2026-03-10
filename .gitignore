@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Project specific
+archive.db
+archive.db-journal
+*.log
+my_config.py
+cookies.txt
+client_secret*.json
+
+# Download directories
+downloads/
+compressed/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# rclone config (sensitive)
+rclone.conf
+
+# Temporary files
+tmp/
+*.tmp
