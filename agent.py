@@ -31,6 +31,7 @@ from tools import (
     remove_local_files,
     check_dependencies,
     sanitize_filename,
+    get_gdrive_video_ids,
     ToolError
 )
 
@@ -89,15 +90,24 @@ class YouTubeArchiveAgent:
         """
         Step 2: Compare - Filter out already processed videos.
 
+        Checks both:
+        1. Local database (primary source of truth)
+        2. Google Drive (safety check using filename pattern)
+
         Args:
             videos: List of video metadata from watchlist
 
         Returns:
             List of new videos that need processing
         """
-        self.logger.info("=== COMPARE: Checking database ===")
+        self.logger.info("=== COMPARE: Checking database and Google Drive ===")
+
+        # Get list of video IDs already on Google Drive
+        gdrive_video_ids = get_gdrive_video_ids(self.config)
+
         new_videos = []
         skipped_count = 0
+        gdrive_skip_count = 0
 
         for video in videos:
             video_id = video.get('video_id')
@@ -112,14 +122,37 @@ class YouTubeArchiveAgent:
                 skipped_count += 1
                 continue
 
-            if not self.db.video_exists(video_id):
-                new_videos.append(video)
-                self.logger.debug(f"New video found: {video_id} - {title}")
-            else:
-                self.logger.debug(f"Already archived: {video_id}")
+            # Check database first (primary check)
+            if self.db.video_exists(video_id):
+                self.logger.debug(f"Already in database: {video_id}")
+                continue
+
+            # Check Google Drive (safety check)
+            if video_id in gdrive_video_ids:
+                self.logger.info(f"Already on Google Drive: {video_id} - {title}")
+                self.logger.info(f"  → Adding to database to sync state")
+                gdrive_skip_count += 1
+
+                # Add to database to sync state (file_size unknown, status='archived')
+                self.db.add_video(
+                    video_id=video_id,
+                    title=title,
+                    channel=video.get('channel', 'Unknown'),
+                    url=video.get('url', ''),
+                    duration=video.get('duration', 0),
+                    file_size=0,  # Unknown size
+                    status='archived'
+                )
+                continue
+
+            # Video is not in database or Drive, add to processing queue
+            new_videos.append(video)
+            self.logger.debug(f"New video found: {video_id} - {title}")
 
         if skipped_count > 0:
             self.logger.warning(f"Skipped {skipped_count} unavailable videos")
+        if gdrive_skip_count > 0:
+            self.logger.info(f"Synced {gdrive_skip_count} videos from Google Drive to database")
         self.logger.info(f"Found {len(new_videos)} new videos to process")
         return new_videos
 

@@ -245,6 +245,7 @@ def download_video(url: str, output_dir: Path, config: Config) -> Optional[Path]
         "-o", output_template,
         "--no-warnings",
         "--no-playlist",
+        "--no-check-certificate",  # Skip SSL verification (for corporate proxies)
         url
     ]
 
@@ -389,6 +390,84 @@ def remove_local_files(*file_paths: Path) -> None:
                 logger.info(f"Removed local file: {file_path}")
             except Exception as e:
                 logger.warning(f"Failed to remove file {file_path}: {e}")
+
+
+def get_gdrive_video_ids(config: Config) -> set:
+    """
+    Get list of video IDs already uploaded to Google Drive.
+
+    Extracts video IDs from filenames using pattern: TITLE_VIDEO_ID.mp4
+
+    Args:
+        config: Configuration object
+
+    Returns:
+        Set of video IDs (strings) found on Google Drive
+
+    Examples:
+        - "My_Video_Title_abc123.mp4" -> "abc123"
+        - "Test_xyz789.mp4" -> "xyz789"
+    """
+    logger.info("Checking Google Drive for existing videos...")
+
+    rclone = find_tool('rclone')
+    cmd = [
+        rclone,
+        "lsf",
+        config.RCLONE_REMOTE,
+        "--files-only"
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30
+        )
+
+        if result.returncode != 0:
+            logger.warning(f"Could not list Google Drive files: {result.stderr}")
+            return set()
+
+        video_ids = set()
+        files = result.stdout.strip().split('\n')
+
+        for filename in files:
+            if not filename or not filename.endswith('.mp4'):
+                continue
+
+            # Extract video ID from filename pattern: TITLE_VIDEO_ID.mp4
+            # YouTube video IDs are ALWAYS exactly 11 characters
+            # Take the last 11 characters before .mp4
+            try:
+                # Remove .mp4 extension
+                name_without_ext = filename[:-4]
+
+                # Get the last 11 characters (video ID is always 11 chars)
+                if len(name_without_ext) >= 11:
+                    potential_id = name_without_ext[-11:]
+
+                    # YouTube video IDs are 11 characters, alphanumeric with - and _
+                    if re.match(r'^[A-Za-z0-9_-]{11}$', potential_id):
+                        video_ids.add(potential_id)
+                        logger.debug(f"Found on Drive: {potential_id} ({filename})")
+                    else:
+                        logger.debug(f"Skipping non-standard filename: {filename}")
+            except Exception as e:
+                logger.debug(f"Could not parse filename: {filename} - {e}")
+                continue
+
+        logger.info(f"Found {len(video_ids)} videos already on Google Drive")
+        return video_ids
+
+    except subprocess.TimeoutExpired:
+        logger.warning("Timeout checking Google Drive, skipping Drive check")
+        return set()
+    except Exception as e:
+        logger.warning(f"Error checking Google Drive: {e}")
+        return set()
 
 
 def check_dependencies() -> bool:

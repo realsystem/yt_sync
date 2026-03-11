@@ -1,19 +1,17 @@
 # YouTube Archive Agent - Docker Image
 FROM python:3.11-slim
 
-# Install system dependencies
+# Install system dependencies including rclone
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
     unzip \
+    ca-certificates \
+    rclone \
     && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
-    chmod a+rx /usr/local/bin/yt-dlp
-
-# Install rclone
-RUN curl https://rclone.org/install.sh | bash
+# Install yt-dlp via pip (more reliable than curl)
+RUN pip install --no-cache-dir yt-dlp
 
 # Set working directory
 WORKDIR /app

@@ -91,7 +91,8 @@ class Database:
         url: str,
         channel: Optional[str] = None,
         duration: Optional[int] = None,
-        file_size: Optional[int] = None
+        file_size: Optional[int] = None,
+        status: str = 'completed'
     ) -> bool:
         """
         Add a new video to the archive database.
@@ -103,6 +104,7 @@ class Database:
             channel: Channel name (optional)
             duration: Video duration in seconds (optional)
             file_size: Compressed file size in bytes (optional)
+            status: Video status (completed, archived, failed) (optional)
 
         Returns:
             True if successful, False otherwise
@@ -112,8 +114,8 @@ class Database:
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO videos
-                    (video_id, title, channel, url, duration, file_size, downloaded_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (video_id, title, channel, url, duration, file_size, downloaded_at, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     video_id,
                     title,
@@ -121,7 +123,8 @@ class Database:
                     url,
                     duration,
                     file_size,
-                    datetime.now().isoformat()
+                    datetime.now().isoformat(),
+                    status
                 ))
                 logger.info(f"Added video to database: {video_id} - {title}")
                 return True

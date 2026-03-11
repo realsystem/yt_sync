@@ -1,7 +1,12 @@
 # YouTube Archive Agent - Makefile
 # Docker and native operations
 
-.PHONY: help docker-build docker-up docker-down docker-logs docker-shell docker-test native-run native-test clean
+.PHONY: help docker-build docker-up docker-down docker-logs docker-shell docker-test docker-daily native-run native-test clean cleanup verify-sync
+
+# Docker
+DOCKER = /usr/local/bin/docker
+DOCKER_PATH = /Applications/Docker.app/Contents/Resources/bin:/usr/local/bin
+export PATH := $(DOCKER_PATH):$(PATH)
 
 # Colors
 GREEN = \033[0;32m
@@ -18,6 +23,7 @@ help:
 	@echo "  make docker-logs      - View logs (follow)"
 	@echo "  make docker-shell     - Open shell in container"
 	@echo "  make docker-test      - Run once (test mode)"
+	@echo "  make docker-daily     - Run daily job (for cron)"
 	@echo "  make docker-restart   - Restart container"
 	@echo "  make docker-stats     - View resource usage"
 	@echo ""
@@ -28,6 +34,8 @@ help:
 	@echo ""
 	@echo "$(YELLOW)Maintenance:$(NC)"
 	@echo "  make clean            - Remove containers and volumes"
+	@echo "  make cleanup          - Remove orphaned files"
+	@echo "  make verify-sync      - Verify database vs Google Drive"
 	@echo "  make update           - Update and rebuild"
 	@echo "  make db-shell         - Open database shell"
 	@echo "  make db-stats         - Show database statistics"
@@ -35,38 +43,42 @@ help:
 # Docker commands
 docker-build:
 	@echo "$(GREEN)Building Docker image...$(NC)"
-	docker-compose build
+	$(DOCKER) compose build
 
 docker-up:
 	@echo "$(GREEN)Starting YouTube Archive Agent...$(NC)"
-	docker-compose up -d
+	$(DOCKER) compose up -d
 	@echo "$(GREEN)✓ Agent started. View logs with: make docker-logs$(NC)"
 
 docker-down:
 	@echo "$(GREEN)Stopping YouTube Archive Agent...$(NC)"
-	docker-compose down
+	$(DOCKER) compose down
 	@echo "$(GREEN)✓ Agent stopped$(NC)"
 
 docker-logs:
 	@echo "$(GREEN)Viewing logs (Ctrl+C to exit)...$(NC)"
-	docker-compose logs -f
+	$(DOCKER) compose logs -f
 
 docker-shell:
 	@echo "$(GREEN)Opening shell in container...$(NC)"
-	docker-compose exec youtube-archive bash
+	$(DOCKER) compose exec youtube-archive bash
 
 docker-test:
 	@echo "$(GREEN)Running test (once)...$(NC)"
-	docker-compose exec youtube-archive python agent.py --config /app/config/my_config.py --once
+	$(DOCKER) compose exec youtube-archive python agent.py --config /app/config/my_config.py --once
+
+docker-daily:
+	@echo "$(GREEN)Running daily job...$(NC)"
+	./run-daily.sh
 
 docker-restart:
 	@echo "$(GREEN)Restarting agent...$(NC)"
-	docker-compose restart
+	$(DOCKER) compose restart
 	@echo "$(GREEN)✓ Agent restarted$(NC)"
 
 docker-stats:
 	@echo "$(GREEN)Resource usage:$(NC)"
-	docker stats youtube-archive-agent --no-stream
+	$(DOCKER) stats youtube-archive-agent --no-stream
 
 # Native commands
 native-run:
@@ -84,24 +96,24 @@ native-deps:
 # Maintenance
 clean:
 	@echo "$(GREEN)Cleaning up Docker resources...$(NC)"
-	docker-compose down -v
+	$(DOCKER) compose down -v
 	@echo "$(GREEN)✓ Cleaned$(NC)"
 
 update:
 	@echo "$(GREEN)Updating and rebuilding...$(NC)"
 	git pull
-	docker-compose down
-	docker-compose build
-	docker-compose up -d
+	$(DOCKER) compose down
+	$(DOCKER) compose build
+	$(DOCKER) compose up -d
 	@echo "$(GREEN)✓ Updated and restarted$(NC)"
 
 db-shell:
 	@echo "$(GREEN)Opening database shell...$(NC)"
-	docker-compose exec youtube-archive sqlite3 /app/data/archive.db
+	$(DOCKER) compose exec youtube-archive sqlite3 /app/data/archive.db
 
 db-stats:
 	@echo "$(GREEN)Database statistics:$(NC)"
-	@docker-compose exec youtube-archive sqlite3 /app/data/archive.db \
+	@$(DOCKER) compose exec youtube-archive sqlite3 /app/data/archive.db \
 		"SELECT COUNT(*) as 'Total Videos' FROM videos; \
 		 SELECT SUM(file_size)/1024/1024 as 'Total Size (MB)' FROM videos WHERE file_size IS NOT NULL; \
 		 SELECT MAX(downloaded_at) as 'Last Download' FROM videos;"
@@ -128,3 +140,12 @@ setup: setup-config setup-data
 	@echo "  1. Edit my_config.py and set your WATCHLIST_URL"
 	@echo "  2. Configure rclone: rclone config"
 	@echo "  3. Build and run: make docker-build && make docker-up"
+
+# Cleanup and verification
+cleanup:
+	@echo "$(GREEN)Running cleanup...$(NC)"
+	./cleanup.sh
+
+verify-sync:
+	@echo "$(GREEN)Verifying sync between database and Google Drive...$(NC)"
+	python3 verify-sync.py
